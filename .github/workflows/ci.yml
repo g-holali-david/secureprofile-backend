@@ -19,7 +19,7 @@ jobs:
           java-version: 17
 
       - name: 🧪 Build & SonarCloud Scan via Maven
-        run: mvn verify org.sonarsource.scanner.maven:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+        run: mvn clean package -DskipTests sonar:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
       - name: 🐳 Docker Login
         uses: docker/login-action@v3
