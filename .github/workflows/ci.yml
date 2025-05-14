@@ -29,5 +29,16 @@ jobs:
 
       - name: 🚀 Docker Build & Push
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/secureprofile-backend:latest .
+          docker build \
+            --build-arg DB_HOST=${{ secrets.DB_HOST }} \
+            --build-arg DB_PORT=${{ secrets.DB_PORT }} \
+            --build-arg DB_NAME=${{ secrets.DB_NAME }} \
+            --build-arg DB_USER=${{ secrets.DB_USER }} \
+            --build-arg DB_PASS=${{ secrets.DB_PASS }} \
+            --build-arg JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            --build-arg JWT_ACCESS_EXPIRATION_MS=${{ secrets.JWT_ACCESS_EXPIRATION_MS }} \
+            --build-arg JWT_REFRESH_EXPIRATION_MS=${{ secrets.JWT_REFRESH_EXPIRATION_MS }} \
+            --build-arg ENC_ALGORITHM=${{ secrets.ENC_ALGORITHM }} \
+            --build-arg ENC_SECRET_KEY=${{ secrets.ENC_SECRET_KEY }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/secureprofile-backend:latest .
           docker push ${{ secrets.DOCKER_USERNAME }}/secureprofile-backend:latest
