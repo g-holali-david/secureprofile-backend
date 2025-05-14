@@ -21,6 +21,9 @@ jobs:
       - name: 🧪 Build & SonarCloud Scan via Maven
         run: mvn clean package -DskipTests sonar:sonar -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
+      - name: 📂 Vérification du JAR
+        run: ls -l target/
+
       - name: 🐳 Docker Login
         uses: docker/login-action@v3
         with:
@@ -41,4 +44,5 @@ jobs:
             --build-arg ENC_ALGORITHM=${{ secrets.ENC_ALGORITHM }} \
             --build-arg ENC_SECRET_KEY=${{ secrets.ENC_SECRET_KEY }} \
             -t ${{ secrets.DOCKER_USERNAME }}/secureprofile-backend:latest .
+          
           docker push ${{ secrets.DOCKER_USERNAME }}/secureprofile-backend:latest

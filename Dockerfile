@@ -32,7 +32,7 @@ ENV DB_HOST=$DB_HOST \
     ENC_SECRET_KEY=$ENC_SECRET_KEY
 
 # Copy jar
-COPY target/secureprofile-backend-*.jar app.jar
+COPY target/backend-0.0.1-SNAPSHOT.jar app.jar
 
 # Permissions
 RUN chown -R secureprofile:secureprofile /app
