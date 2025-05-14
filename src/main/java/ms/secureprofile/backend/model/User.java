@@ -1,6 +1,11 @@
 package ms.secureprofile.backend.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import ms.secureprofile.backend.validation.StrongPassword;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -15,11 +20,15 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
 
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email format is invalid")
     @Column(nullable = false, unique = true)
     private String email;
 
     // Donnée hachée
     @Column(nullable = false)
+    @Size(min = 12, message = "Password must be at least 12 characters")
+    @StrongPassword
     private String password;
 
     // Infos personnelles

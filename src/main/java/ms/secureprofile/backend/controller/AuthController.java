@@ -26,7 +26,7 @@ import java.util.Map;
  * - Déconnexion (logout)
  */
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthController {
 
     // Services métiers injectés via le constructeur
@@ -55,7 +55,7 @@ public class AuthController {
     }
 
     /**
-     * ✅ Enregistrement (Register) :
+     *   Enregistrement (Register) :
      * - Crée un nouvel utilisateur
      * - Chiffre le username et l’email
      * - Hash le mot de passe
@@ -68,7 +68,7 @@ public class AuthController {
     }
 
     /**
-     * ✅ Connexion (Login) :
+     *   Connexion (Login) :
      * - Authentifie l’utilisateur via Spring Security
      * - Vérifie s’il est temporairement bloqué (anti-brute-force)
      * - Génère un accessToken (JWT) + refreshToken (stocké en BDD)
@@ -78,7 +78,7 @@ public class AuthController {
         String username = credentials.get("username");
         String password = credentials.get("password");
 
-        // 🔐 Mécanisme anti-brute-force : bloque l’accès temporairement après trop d’échecs
+        //  Mécanisme anti-brute-force : bloque l’accès temporairement après trop d’échecs
         if (loginAttemptService.isBlocked(username)) {
             long seconds = loginAttemptService.remainingBlockSeconds(username);
             return ResponseEntity.status(403).body(Map.of(
@@ -87,26 +87,26 @@ public class AuthController {
         }
 
         try {
-            // 🔐 Authentifie l’utilisateur (utilise BCrypt et UserDetailsService en interne)
+            //  Authentifie l’utilisateur (utilise BCrypt et UserDetailsService en interne)
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password)
             );
 
-            // ✅ Authentification réussie → on récupère les détails utilisateur
+            //  Authentification réussie → on récupère les détails utilisateur
             UserDetails userDetails = (UserDetails) auth.getPrincipal();
             String accessToken = jwtService.generateAccessToken(userDetails.getUsername());
 
-            // 🔍 On retrouve l’utilisateur (stocké avec username chiffré)
+            // On retrouve l’utilisateur (stocké avec username chiffré)
             User user = userRepository.findByUsername(userService.encryptUsername(username))
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            // 🎟️ On génère un refresh token unique (stocké en base, durée plus longue)
+            // On génère un refresh token unique (stocké en base, durée plus longue)
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
-            // 🔁 Réinitialise le compteur d’échecs après succès
+            // Réinitialise le compteur d’échecs après succès
             loginAttemptService.loginSucceeded(username);
 
-            // ✅ Renvoie les deux tokens au frontend
+            // Renvoie les deux tokens au frontend
             return ResponseEntity.ok(Map.of(
                     "accessToken", accessToken,
                     "refreshToken", refreshToken.getToken()

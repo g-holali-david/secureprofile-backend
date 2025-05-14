@@ -31,6 +31,14 @@ public class UserService {
     }
 
     public User register(User user) {
+
+        if (userRepository.existsByEmail(encryptService.encrypt(user.getEmail()))) {
+            throw new RuntimeException("Email already in use");
+        }
+        // idem pour username si besoin
+        if (userRepository.existsByUsername(encryptService.encrypt(user.getUsername()))) {
+            throw new RuntimeException("Username already in use");
+        }
         user.setUsername(encryptService.encrypt(user.getUsername()));
         user.setEmail(encryptService.encrypt(user.getEmail()));
         user.setPassword(passwordEncoder.encode(user.getPassword()));
