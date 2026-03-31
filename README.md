@@ -1,122 +1,171 @@
-﻿# secureprofile-backend
+# SecureProfile Backend
 
-## Auteur : GAVI Holali David
+> Secure user profile management API built with Spring Boot, implementing encrypted data storage, JWT authentication, role-based access control, and automated CI/CD with SonarCloud analysis.
 
-## Objectif du projet
+![Java](https://img.shields.io/badge/Java_17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot_3.1-6DB33F?style=for-the-badge&logo=spring-boot&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![SonarCloud](https://img.shields.io/badge/SonarCloud-F3702A?style=for-the-badge&logo=sonarcloud&logoColor=white)
 
-Cette application backend est conçue pour gérer de manière sécurisée les utilisateurs (inscription, authentification, gestion des rôles, etc.) en mettant en œuvre plusieurs mécanismes de sécurité conformes aux bonnes pratiques.
+## Architecture
 
-## Technologies utilisées
+```mermaid
+flowchart TD
+    Client[Client Application] -->|REST API| API
 
-- **Spring Boot**
-- **Spring Security**
-- **JWT (JSON Web Tokens)**
-- **PostgreSQL** via Render
-- **Validation Bean & Hibernate Validator**
-- **Encryption AES & Hashing (BCrypt)**
-- **Docker**
-- **Spring Scheduler**
-- **GitHub Actions (CI/CD)**
+    subgraph Backend["Spring Boot — SecureProfile"]
+        API[Controllers]
+        API --> AuthC[AuthController<br/>Register / Login / Refresh / Logout]
+        API --> UserC[UserController<br/>Profile Management]
+        API --> AdminC[AdminController<br/>Admin Operations]
 
----
+        AuthC --> JWT[JwtService]
+        AuthC --> BF[LoginAttemptService<br/>Anti Brute-Force]
+        AuthC --> US[UserService]
+        AuthC --> RT[RefreshTokenService]
 
-## Structure du projet
+        US --> ENC[EncryptService<br/>AES Encryption]
 
-Le code est organisé en plusieurs packages :
+        JWT --> Filter[JwtAuthenticationFilter]
+        Filter --> Security[SecurityConfig<br/>Stateless + CORS + BCrypt]
+    end
 
-- `controller` : Contient les endpoints REST (`AuthController`, `UserController`, `AdminController`)
-- `model` : Entités JPA (`User`, `Role`, `RefreshToken`, `BlacklistToken`, etc.)
-- `repository` : Interfaces Spring Data JPA
-- `security` : Logique de sécurité, JWT, encryption et filtres
-- `validation` : Contraintes personnalisées (mot de passe fort)
-- `jobs` : Tâches planifiées (cron) comme le nettoyage automatique des tokens expirés
-- `exception` : Gestion centralisée des erreurs (par exemple : validations)
+    subgraph Persistence["PostgreSQL"]
+        DB[(Database)]
+        Users[users — encrypted PII]
+        Roles[roles — USER / ADMIN]
+        Tokens[refresh_tokens]
+        Audit[audit_logs]
+        Blacklist[blacklisted_tokens]
+    end
 
----
+    Security --> DB
+    ENC --> Users
+    RT --> Tokens
+    
+    subgraph Pipeline["CI/CD — GitHub Actions"]
+        Build[Maven Build] --> Sonar[SonarCloud Scan]
+        Build --> Docker[Docker Build + Push]
+    end
+```
 
-## Mécanismes de sécurité mis en place
+## Features
 
-### 🔐 Authentification sécurisée
+- **Encrypted PII storage**: AES encryption for usernames and emails at the service layer
+- **JWT dual-token system**: short-lived access tokens + persistent refresh tokens
+- **Brute-force protection**: automatic temporary account lockout after failed attempts
+- **Strong password enforcement**: custom `@StrongPassword` validator requiring 12+ characters
+- **Role-based authorization**: USER and ADMIN roles with endpoint protection
+- **Token management**: refresh, revoke on logout, scheduled cleanup of expired tokens
+- **Audit trail**: logs security events for compliance
+- **CI/CD**: GitHub Actions pipeline with Maven build, SonarCloud scan, and Docker Hub deployment
+- **Secure Docker image**: non-root user on Eclipse Temurin 17 Alpine
 
-- Basée sur `JWT` avec expiration courte pour les tokens d’accès.
-- Utilisation de **Refresh Tokens** stockés en base pour renouveler un JWT expiré.
-- Stockage en base du refresh token avec date d’expiration.
+## Tech Stack
 
-### 🔒 Hachage et chiffrement
+| Category | Technology |
+|----------|-----------|
+| Language | Java 17 |
+| Framework | Spring Boot 3.1.5 |
+| Security | Spring Security, JWT (jjwt 0.12.5), BCrypt |
+| Database | PostgreSQL |
+| ORM | Spring Data JPA |
+| Encryption | AES (EncryptService) |
+| CI/CD | GitHub Actions |
+| Code Quality | SonarCloud |
+| Container | Docker (Temurin 17 Alpine) |
 
-- **Mot de passe** : haché avec `BCrypt`
-- **Username / Email** : chiffrés avec `AES` (utilisation d’un secret dans le `.env`)
+## Getting Started
 
-### 🚫 Protection contre les attaques
+### Prerequisites
 
-- **Token blacklist** : les refresh tokens invalidés (logout) sont stockés et non acceptés s’ils sont réutilisés.
-- **Brute-force** : gestion des tentatives de connexion, blocage temporaire (compteur en mémoire)
+- Java 17+
+- Maven 3.8+
+- PostgreSQL 14+
 
-### 🛡️ Validation avancée
+### Installation
 
-- Validation des champs avec `@Valid`
-- Email vérifié par `@Email`
-- Mot de passe validé par annotation personnalisée `@StrongPassword(min = 12)`
+```bash
+git clone https://github.com/g-holali-david/secureprofile-backend.git
+cd secureprofile-backend
 
-### 👮 Rôles et autorisations
+# Set environment variables (.env file)
+# DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
+# JWT_SECRET, JWT_ACCESS_EXPIRATION_MS, JWT_REFRESH_EXPIRATION_MS
+# ENC_ALGORITHM, ENC_SECRET_KEY
 
-- Utilisation de `@PreAuthorize` pour sécuriser les routes (USER, ADMIN)
-- Possibilité de changer le rôle via l’interface admin (`/admin/change-role`)
+./mvnw clean package
+java -jar target/backend-0.0.1-SNAPSHOT.jar
+```
 
-### 🧹 Nettoyage automatique
+### Usage
 
-- Tâche planifiée (`TokenCleanupJob`) qui supprime les refresh tokens expirés.
+```bash
+# Register
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","email":"alice@example.com","password":"Str0ngP@ssw0rd!"}'
 
-### 📜 Audit
+# Login (returns accessToken + refreshToken)
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"Str0ngP@ssw0rd!"}'
 
-- Log de certaines actions sensibles (connexion, logout) dans une entité `AuditLog`.
+# Access protected endpoint
+curl -H "Authorization: Bearer <accessToken>" http://localhost:8080/api/v1/user/profile
 
----
+# Docker
+docker build -t secureprofile-backend .
+docker run -p 8080:8080 --env-file .env secureprofile-backend
+```
 
-## Endpoints clés
+## Project Structure
 
-| Méthode | URL                         | Description                              |
-|--------|-----------------------------|------------------------------------------|
-| POST   | `/auth/register`            | Inscription avec rôle `USER` par défaut  |
-| POST   | `/auth/login`               | Authentification et retour des tokens    |
-| POST   | `/auth/refresh`             | Génère un nouveau token d’accès          |
-| POST   | `/auth/logout`              | Invalide le refresh token                |
-| GET    | `/users/me`                 | Récupère les infos du profil             |
-| PATCH  | `/users/password`           | Modifier son mot de passe                |
-| DELETE | `/users/me`                 | Supprimer son compte                     |
-| GET    | `/admin/users`              | Voir tous les utilisateurs               |
-| PATCH  | `/admin/users/{id}/enable`  | Activer un compte                        |
-| PATCH  | `/admin/users/{id}/disable` | Désactiver un compte                     |
-| POST   | `/admin/change-role`        | Modifier le rôle d’un utilisateur        |
+```
+secureprofile-backend/
+├── Dockerfile
+├── pom.xml
+├── sonar-project.properties
+├── .github/workflows/ci.yml
+└── src/main/java/ms/secureprofile/backend/
+    ├── BackendApplication.java
+    ├── controller/
+    │   ├── AuthController.java
+    │   ├── UserController.java
+    │   └── AdminController.java
+    ├── model/
+    │   ├── User.java
+    │   ├── Role.java
+    │   ├── RefreshToken.java
+    │   ├── AuditLog.java
+    │   └── BlacklistedToken.java
+    ├── security/
+    │   ├── SecurityConfig.java
+    │   ├── JwtService.java
+    │   ├── JwtAuthenticationFilter.java
+    │   ├── EncryptService.java
+    │   ├── LoginAttemptService.java
+    │   └── UserDetailsServiceImpl.java
+    ├── service/
+    │   ├── UserService.java
+    │   ├── AuditService.java
+    │   └── RefreshTokenService.java
+    ├── repository/
+    ├── validation/
+    │   ├── StrongPassword.java
+    │   └── StrongPasswordValidator.java
+    └── exception/
+        └── ValidationExceptionHandler.java
+```
 
----
+## Author
 
-## Conteneurisation
+**Holali David GAVI** — Cloud & DevOps Engineer
+- Portfolio: [hdgavi.dev](https://hdgavi.dev)
+- GitHub: [@g-holali-david](https://github.com/g-holali-david)
+- LinkedIn: [Holali David GAVI](https://www.linkedin.com/in/holali-david-g-4a434631a/)
 
-Le projet inclut un `Dockerfile` permettant de construire une image exécutable.
-> Les variables sensibles sont chargées via un fichier `.env` externe au conteneur.
+## License
 
----
-
-## CI / CD
-
-Le projet inclut un pipeline GitHub Actions (`.github/workflows/ci.yml`) avec :
-
-- Compilation du backend
-- Lint et vérifications de sécurité
-- Préparation à l’intégration continue
-
----
-
-## Remarques
-
-- Le projet est conçu pour séparer clairement **la sécurité** dans un package dédié.
-- Le choix de chiffrer les usernames/emails avant stockage permet d'assurer la **confidentialité** même en cas d'accès à la base.
-- Toutes les routes critiques sont protégées par `@PreAuthorize` avec vérification des rôles.
-- Des annotations personnalisées permettent d’avoir une **validation forte et réutilisable** des mots de passe.
-
----
-
-## Auteur
-
-Projet réalisé dans le cadre du **TP d’Intégration et Sécurisation des bases de données** – Mastère IPSSI.
+MIT
